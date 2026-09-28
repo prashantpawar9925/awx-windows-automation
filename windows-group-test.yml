@@ -1,0 +1,10 @@
+---
+- name: Test Windows Group Management
+  hosts: Win_Server
+  gather_facts: false
+
+  tasks:
+    - name: Create AWX test group
+      ansible.windows.win_group:
+        name: AWXTestGroup
+        state: present
