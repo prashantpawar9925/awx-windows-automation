@@ -1,0 +1,10 @@
+---
+- name: Test Windows User Management
+  hosts: Win_Server
+  gather_facts: false
+
+  tasks:
+    - name: Create Pawar-AWS user
+      ansible.windows.win_user:
+        name: Pawar-AWS
+        state: present
