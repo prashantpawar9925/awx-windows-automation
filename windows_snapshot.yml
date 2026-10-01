@@ -7,9 +7,9 @@
 
     - name: Create EBS snapshot
       amazon.aws.ec2_snapshot:
-        volume_id: "{{ vol-0066f805d83db5aef }}"
+        volume_id: "{{ volume_id }}"
         region: ap-south-1
-        description: "Pre-patch snapshot - Windows Server - {{ vol-0066f805d83db5aef }}"
+        description: "Pre-patch snapshot - Windows Server - {{ volume_id }}"
         wait: true
       register: snapshot_result
 
