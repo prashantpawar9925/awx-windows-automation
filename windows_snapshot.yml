@@ -1,0 +1,20 @@
+---
+- name: Create Windows EBS Snapshot
+  hosts: localhost
+  gather_facts: false
+
+  tasks:
+
+    - name: Create EBS snapshot
+      amazon.aws.ec2_snapshot:
+        volume_id: "{{ vol-0066f805d83db5aef }}"
+        region: ap-south-1
+        description: "Pre-patch snapshot - Windows Server - {{ vol-0066f805d83db5aef }}"
+        wait: true
+      register: snapshot_result
+
+    - name: Display snapshot information
+      ansible.builtin.debug:
+        msg:
+          - "Snapshot ID: {{ snapshot_result.snapshot_id }}"
+          - "Snapshot created successfully"
