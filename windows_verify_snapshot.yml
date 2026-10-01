@@ -1,0 +1,29 @@
+---
+- name: Verify Windows EBS Snapshot
+  hosts: localhost
+  gather_facts: false
+
+  tasks:
+
+    - name: Get snapshot information
+      amazon.aws.ec2_snapshot_info:
+        region: ap-south-1
+        snapshot_ids:
+          - "{{ snapshot_id }}"
+      register: snapshot_info
+
+    - name: Display snapshot status
+      ansible.builtin.debug:
+        msg:
+          - "Snapshot ID: {{ snapshot_id }}"
+          - "Snapshot State: {{ snapshot_info.snapshots[0].state }}"
+          - "Snapshot Description: {{ snapshot_info.snapshots[0].description }}"
+
+    - name: Fail if snapshot is not completed
+      ansible.builtin.fail:
+        msg: "Snapshot verification failed. Current state: {{ snapshot_info.snapshots[0].state }}"
+      when: snapshot_info.snapshots[0].state != "completed"
+
+    - name: Snapshot verification successful
+      ansible.builtin.debug:
+        msg: "Windows EBS snapshot verification completed successfully."
