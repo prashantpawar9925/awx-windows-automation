@@ -1,0 +1,60 @@
+---
+- name: Install August 2026 Windows Server 2022 Patch
+  hosts: Win_Server
+  gather_facts: false
+
+  vars:
+    target_kb: "KB5120242"
+
+  tasks:
+
+    - name: Check if target KB is already installed
+      ansible.windows.win_shell: |
+        $kb = Get-HotFix -Id "{{ target_kb }}" -ErrorAction SilentlyContinue
+
+        if ($kb) {
+          Write-Output "INSTALLED"
+        }
+        else {
+          Write-Output "NOT_INSTALLED"
+        }
+      register: kb_status
+      changed_when: false
+
+    - name: Display current KB status
+      ansible.builtin.debug:
+        msg: "Current {{ target_kb }} status: {{ kb_status.stdout | trim }}"
+
+    - name: Download and install target security update
+      ansible.windows.win_updates:
+        category_names:
+          - SecurityUpdates
+        accept_list:
+          - "{{ target_kb }}"
+        state: installed
+        reboot: true
+        reboot_timeout: 3600
+      register: patch_result
+      when: "'NOT_INSTALLED' in kb_status.stdout"
+
+    - name: Display patch result
+      ansible.builtin.debug:
+        var: patch_result
+
+    - name: Verify target KB after patching
+      ansible.windows.win_shell: |
+        $kb = Get-HotFix -Id "{{ target_kb }}" -ErrorAction SilentlyContinue
+
+        if ($kb) {
+          Write-Output "{{ target_kb }}_INSTALLED"
+        }
+        else {
+          Write-Output "{{ target_kb }}_NOT_INSTALLED"
+          exit 1
+        }
+      register: kb_verify
+      changed_when: false
+
+    - name: Display final KB status
+      ansible.builtin.debug:
+        msg: "{{ kb_verify.stdout | trim }}"
