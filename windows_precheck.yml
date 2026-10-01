@@ -1,0 +1,42 @@
+---
+- name: Windows Server Pre-Patch Checks
+  hosts: Win_Server
+  gather_facts: true
+
+  tasks:
+
+    - name: Test WinRM connectivity
+      ansible.windows.win_ping:
+
+    - name: Check Windows version
+      ansible.windows.win_shell: |
+        (Get-CimInstance Win32_OperatingSystem).Caption
+      register: windows_version
+      changed_when: false
+
+    - name: Check Windows last boot time
+      ansible.windows.win_shell: |
+        (Get-CimInstance Win32_OperatingSystem).LastBootUpTime
+      register: last_boot
+      changed_when: false
+
+    - name: Check C drive free space
+      ansible.windows.win_shell: |
+        $drive = Get-CimInstance Win32_LogicalDisk -Filter "DeviceID='C:'"
+        [math]::Round($drive.FreeSpace / 1GB, 2)
+      register: free_space
+      changed_when: false
+
+    - name: Check Windows Update service
+      ansible.windows.win_service:
+        name: wuauserv
+      register: windows_update_service
+
+    - name: Display pre-check results
+      ansible.builtin.debug:
+        msg:
+          - "Hostname: {{ ansible_hostname }}"
+          - "Windows Version: {{ windows_version.stdout | trim }}"
+          - "Last Boot Time: {{ last_boot.stdout | trim }}"
+          - "C Drive Free Space: {{ free_space.stdout | trim }} GB"
+          - "Windows Update Service: {{ windows_update_service.state }}"
