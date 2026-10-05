@@ -1,60 +1,78 @@
 ---
-- name: Install August 2026 Windows Server 2022 Patch
+- name: Patch Windows Server 2022 - Security Updates Only
   hosts: Win_Server
   gather_facts: false
 
-  vars:
-    target_kb: "KB5120242"
-
   tasks:
 
-    - name: Check if target KB is already installed
+    - name: Get currently installed security updates
       ansible.windows.win_shell: |
-        $kb = Get-HotFix -Id "{{ target_kb }}" -ErrorAction SilentlyContinue
+        $updates = Get-HotFix |
+          Where-Object {$_.Description -eq "Security Update"} |
+          Sort-Object InstalledOn -Descending
 
-        if ($kb) {
-          Write-Output "INSTALLED"
+        if ($updates) {
+          $latest = $updates | Select-Object -First 1
+
+          Write-Output "CURRENT_LATEST_KB=$($latest.HotFixID)"
+          Write-Output "CURRENT_LATEST_DATE=$($latest.InstalledOn)"
         }
         else {
-          Write-Output "NOT_INSTALLED"
+          Write-Output "NO_SECURITY_UPDATE_FOUND"
         }
-      register: kb_status
+      register: current_patch
       changed_when: false
 
-    - name: Display current KB status
+    - name: Display currently installed latest Security Update
       ansible.builtin.debug:
-        msg: "Current {{ target_kb }} status: {{ kb_status.stdout | trim }}"
+        msg: "{{ current_patch.stdout_lines }}"
 
-    - name: Download and install target security update
+    - name: Install available Windows Security Updates
       ansible.windows.win_updates:
         category_names:
           - SecurityUpdates
-        accept_list:
-          - "{{ target_kb }}"
         state: installed
         reboot: true
         reboot_timeout: 3600
-      register: patch_result
-      when: "'NOT_INSTALLED' in kb_status.stdout"
+      register: windows_update_result
 
-    - name: Display patch result
+    - name: Display Windows Update result
       ansible.builtin.debug:
-        var: patch_result
+        msg:
+          - "Updates found: {{ windows_update_result.found_update_count }}"
+          - "Updates installed: {{ windows_update_result.installed_update_count }}"
+          - "Reboot required: {{ windows_update_result.reboot_required }}"
+          - "Server rebooted: {{ windows_update_result.rebooted }}"
 
-    - name: Verify target KB after patching
+    - name: Get latest Security Update after patching
       ansible.windows.win_shell: |
-        $kb = Get-HotFix -Id "{{ target_kb }}" -ErrorAction SilentlyContinue
+        $updates = Get-HotFix |
+          Where-Object {$_.Description -eq "Security Update"} |
+          Sort-Object InstalledOn -Descending
 
-        if ($kb) {
-          Write-Output "{{ target_kb }}_INSTALLED"
+        if ($updates) {
+          $latest = $updates | Select-Object -First 1
+
+          Write-Output "LATEST_KB=$($latest.HotFixID)"
+          Write-Output "LATEST_PATCH_DATE=$($latest.InstalledOn)"
         }
         else {
-          Write-Output "{{ target_kb }}_NOT_INSTALLED"
-          exit 1
+          Write-Output "NO_SECURITY_UPDATE_FOUND"
         }
-      register: kb_verify
+      register: final_patch
       changed_when: false
 
-    - name: Display final KB status
+    - name: Display final latest Security Update
       ansible.builtin.debug:
-        msg: "{{ kb_verify.stdout | trim }}"
+        msg: "{{ final_patch.stdout_lines }}"
+
+    - name: Display patch status
+      ansible.builtin.debug:
+        msg: >-
+          {% if windows_update_result.installed_update_count | int > 0 %}
+          New Security Update(s) were installed.
+          Latest installed Security Update: {{ final_patch.stdout_lines[0] }}
+          {% else %}
+          No new Security Updates were installed.
+          Existing latest Security Update: {{ final_patch.stdout_lines[0] }}
+          {% endif %}
